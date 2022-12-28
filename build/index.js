@@ -14,9 +14,11 @@
 // limitations under the License.
 var rpcIdRewards = 'rewards_js';
 var rpcIdFindMatch = 'find_match_js';
+var rpcIdCanClaim = 'can_claim_js';
 function InitModule(ctx, logger, nk, initializer) {
     initializer.registerRpc(rpcIdRewards, rpcReward);
     initializer.registerRpc(rpcIdFindMatch, rpcFindMatch);
+    initializer.registerRpc(rpcIdCanClaim, rpcCanClaimDailyReward);
     initializer.registerMatch(moduleName, {
         matchInit: matchInit,
         matchJoinAttempt: matchJoinAttempt,
@@ -125,6 +127,53 @@ function rpcReward(context, logger, nk, payload) {
     var result = JSON.stringify(resp);
     logger.debug('rpcReward resp: %q', result);
     return result;
+}
+function rpcCanClaimDailyReward(context, logger, nk, payload) {
+    var dailyReward = getLastDailyRewardObject(context, logger, nk, payload);
+    var response = {
+        canClaimDailyReward: canUserClaimDailyReward(dailyReward)
+    };
+    var result = JSON.stringify(response);
+    logger.debug('rpcCanClaimDailyReward response: %q', result);
+    return result;
+}
+function getLastDailyRewardObject(context, logger, nk, payload) {
+    if (!context.userId) {
+        throw Error('No user ID in context');
+    }
+    if (payload) {
+        throw Error('No input allowed');
+    }
+    var objectId = {
+        collection: 'reward',
+        key: 'daily',
+        userId: context.userId,
+    };
+    var objects;
+    try {
+        objects = nk.storageRead([objectId]);
+    }
+    catch (error) {
+        logger.error('storageRead error: %s', error);
+        throw error;
+    }
+    var dailyReward = {
+        lastClaimUnix: 0,
+    };
+    objects.forEach(function (object) {
+        if (object.key == 'daily') {
+            dailyReward = object.value;
+        }
+    });
+    return dailyReward;
+}
+function canUserClaimDailyReward(dailyReward) {
+    if (!dailyReward.lastClaimUnix) {
+        dailyReward.lastClaimUnix = 0;
+    }
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return dailyReward.lastClaimUnix < msecToSec(d.getTime());
 }
 function msecToSec(n) {
     return Math.floor(n / 1000);
@@ -332,7 +381,7 @@ var matchLoop = function (ctx, logger, nk, dispatcher, tick, state, messages) {
         var marks_1 = [Mark.X, Mark.O];
         Object.keys(state.presences).forEach(function (userId) {
             var _a;
-            state.marks[userId] = (_a = marks_1.shift(), (_a !== null && _a !== void 0 ? _a : null));
+            state.marks[userId] = (_a = marks_1.shift()) !== null && _a !== void 0 ? _a : null;
         });
         state.mark = Mark.X;
         state.winner = null;
@@ -355,7 +404,7 @@ var matchLoop = function (ctx, logger, nk, dispatcher, tick, state, messages) {
         switch (message.opCode) {
             case OpCode.MOVE:
                 logger.debug('Received move message from user: %v', state.marks);
-                var mark = (_a = state.marks[message.sender.userId], (_a !== null && _a !== void 0 ? _a : null));
+                var mark = (_a = state.marks[message.sender.userId]) !== null && _a !== void 0 ? _a : null;
                 if (mark === null || state.mark != mark) {
                     // It is not this player's turn.
                     dispatcher.broadcastMessage(OpCode.REJECTED, null, [message.sender]);
@@ -511,7 +560,7 @@ var rpcFindMatch = function (ctx, logger, nk, payload) {
     }
     var matches;
     try {
-        var query = "+label.open:1 +label.fast:" + (request.fast ? 1 : 0);
+        var query = "+label.open:1 +label.fast:".concat(request.fast ? 1 : 0);
         matches = nk.matchList(10, true, null, null, 1, query);
     }
     catch (error) {

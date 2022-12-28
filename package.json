@@ -20,9 +20,9 @@
   },
   "homepage": "https://github.com/heroiclabs/nakama-project-template#readme",
   "dependencies": {
-    "nakama-runtime": "github:heroiclabs/nakama-common#master"
+    "nakama-runtime": "git+https://github.com/heroiclabs/nakama-common.git"
   },
   "devDependencies": {
-    "typescript": "^4.5.4"
+    "typescript": "^4.9.4"
   }
 }

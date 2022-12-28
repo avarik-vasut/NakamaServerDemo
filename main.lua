@@ -20,4 +20,4 @@ local dr = require("daily_rewards")
 local RPC_ID_REWARD = "reward"
 
 -- Register all server functions.
-nk.register_rpc(dr.rpcReward, RPC_ID_REWARD)
+-- nk.register_rpc(dr.rpcReward, RPC_ID_REWARD)
