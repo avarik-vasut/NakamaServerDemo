@@ -107,6 +107,104 @@ function rpcReward(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkr
     return result;
 }
 
+
+// function rpcMatchWon(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+    // var matchReward = getMatchReward(context, logger, nk, payload);
+   //get match reward and all 
+    // var result = JSON.stringify(response);
+    // logger.debug('rpcMatchWon response: %q', result);
+
+    // return result;
+// }
+
+function rpcInitializeUser(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string) : any {
+    if (!context.userId) {
+        throw Error('No user ID in context');
+    }
+
+ var initialzedTime = msecToSec(Date.now());
+ var itemData00: any = {
+    quantity: 1,
+    goldCost: 100,
+    gemCost: 10,
+    latestUpdatedUnix: initialzedTime,
+    }
+
+  var writeItem00Op: nkruntime.StorageWriteRequest = {
+            collection: 'catalogue',
+            key: 'item_00',
+            permissionRead: 1,
+            permissionWrite: 0,
+            value: itemData00,
+            userId: context.userId,
+        }
+
+    var itemData01: any = {
+    quantity: 1,
+    goldCost: 200,
+    gemCost: 20,
+    latestUpdatedUnix: initialzedTime,
+    }
+
+    var writeItem01Op: nkruntime.StorageWriteRequest = {
+            collection: 'catalogue',
+            key: 'item_01',
+            permissionRead: 1,
+            permissionWrite: 0,
+            value: itemData01,
+            userId: context.userId,
+        }
+
+
+    var itemData02: any = {
+    quantity: 1,
+    goldCost: 300,
+    gemCost: 30,
+    latestUpdatedUnix: initialzedTime,
+    }
+
+    var writeItem02Op: nkruntime.StorageWriteRequest = {
+            collection: 'catalogue',
+            key: 'item_02',
+            permissionRead: 1,
+            permissionWrite: 0,
+            value: itemData02,
+            userId: context.userId,
+        }
+
+
+    var itemData03: any = {
+    quantity: 1,
+    goldCost: 400   ,
+    gemCost: 40,
+    latestUpdatedUnix: initialzedTime,
+    }
+
+    var writeItem03Op: nkruntime.StorageWriteRequest = {
+            collection: 'catalogue',
+            key: 'item_03',
+            permissionRead: 1,
+            permissionWrite: 0,
+            value: itemData03,
+            userId: context.userId,
+        }
+        
+
+
+    try {
+            nk.storageWrite([ writeItem00Op, writeItem01Op ,writeItem02Op,writeItem03Op ])
+        } catch (error) {
+            logger.error('storageWrite error: %q', error);
+            throw error;
+        }
+
+
+}
+
+
+
+
+
 function rpcCanClaimDailyReward(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
     var dailyReward = getLastDailyRewardObject(context, logger, nk, payload);
     var response = {
