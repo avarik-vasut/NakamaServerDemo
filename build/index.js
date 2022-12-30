@@ -16,11 +16,13 @@ var rpcIdRewards = 'rewards_js';
 var rpcIdFindMatch = 'find_match_js';
 var rpcIdCanClaim = 'can_claim_js';
 var rpcIdInitializeUser = 'init_user_js';
+var rpcIdMatchWon = 'match_won_js';
 function InitModule(ctx, logger, nk, initializer) {
     initializer.registerRpc(rpcIdRewards, rpcReward);
     initializer.registerRpc(rpcIdFindMatch, rpcFindMatch);
     initializer.registerRpc(rpcIdCanClaim, rpcCanClaimDailyReward);
     initializer.registerRpc(rpcIdInitializeUser, rpcInitializeUser);
+    initializer.registerRpc(rpcIdMatchWon, rpcMatchWon);
     initializer.registerMatch(moduleName, {
         matchInit: matchInit,
         matchJoinAttempt: matchJoinAttempt,
@@ -130,13 +132,94 @@ function rpcReward(context, logger, nk, payload) {
     logger.debug('rpcReward resp: %q', result);
     return result;
 }
-// function rpcMatchWon(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
-// var matchReward = getMatchReward(context, logger, nk, payload);
-//get match reward and all 
-// var result = JSON.stringify(response);
-// logger.debug('rpcMatchWon response: %q', result);
-// return result;
-// }
+var rewardData = /** @class */ (function () {
+    function rewardData() {
+        this.rewardEntry = [{ itemId: '0', amount: 0 }];
+        this.latestUpdatedUnix = 0;
+    }
+    return rewardData;
+}());
+function rpcMatchWon(context, logger, nk, payload) {
+    // get relevant match reward info 
+    var matchReward = getMatchReward(context, logger, nk, payload);
+    //update player data, add reward to wallet
+    logger.debug('reward#1: %q', matchReward);
+    var rewardDataInstance = new rewardData;
+    for (var i in matchReward) {
+        logger.debug('matchRewardContent', i);
+        if (i === 'latestUpdatedUnix') {
+            rewardDataInstance.latestUpdatedUnix = matchReward[i];
+        }
+        if (i === 'rewardEntry') {
+            rewardDataInstance.rewardEntry = matchReward[i];
+        }
+    }
+    logger.debug('setting RewardDataInstance  : ', rewardDataInstance.latestUpdatedUnix);
+    for (var q in rewardDataInstance.rewardEntry) {
+        logger.debug('setting RewardDataInstance rewardEntry : ', rewardDataInstance.rewardEntry[q]);
+        var currentReward = rewardDataInstance.rewardEntry[q];
+        var now = msecToSec(Date.now());
+        var key = '';
+        var amount = 1;
+        for (var x in currentReward) {
+            logger.debug('Getting currentReward Key Value: ', currentReward[x]['itemId']);
+            logger.debug('Getting currentReward Value: ', currentReward[x]['amount']);
+            key = currentReward[x]['itemId'];
+            amount = currentReward[x]['amount'];
+            var itemEntryData = {
+                itemId: key,
+                amount: amount,
+                addedOn: now,
+            };
+            var addItemOp = {
+                collection: 'inventory',
+                key: key,
+                permissionRead: 1,
+                permissionWrite: 0,
+                value: itemEntryData,
+                userId: context.userId,
+            };
+            try {
+                nk.storageWrite([addItemOp]);
+            }
+            catch (error) {
+                logger.error('storageWrite error: %q', error);
+                throw error;
+            }
+        }
+    }
+    var result = JSON.stringify(matchReward);
+    //response with changes
+    logger.debug('rpcMatchWon response: %q', result);
+    return result;
+}
+function getMatchReward(context, logger, nk, payload) {
+    if (!context.userId) {
+        throw Error('No user ID in context');
+    }
+    var objectId = {
+        collection: 'matchReward',
+        key: payload,
+        userId: context.userId,
+    };
+    var objects;
+    try {
+        objects = nk.storageRead([objectId]);
+    }
+    catch (error) {
+        logger.error('storageRead error: %s', error);
+        throw error;
+    }
+    var matchReward = {
+        latestUpdatedUnix: 0,
+    };
+    objects.forEach(function (object) {
+        if (object.key == payload) {
+            matchReward = object.value;
+        }
+    });
+    return matchReward;
+}
 function rpcInitializeUser(context, logger, nk, payload) {
     if (!context.userId) {
         throw Error('No user ID in context');
@@ -198,8 +281,21 @@ function rpcInitializeUser(context, logger, nk, payload) {
         value: itemData03,
         userId: context.userId,
     };
+    var matchRewardData00 = {
+        rewardEntry: [[{ itemId: 'item_00', amount: 1 }], [{ itemId: 'item_01', amount: 5 }]],
+        latestUpdatedUnix: initialzedTime
+    };
+    var writeMatchReward00Op = {
+        collection: 'matchReward',
+        key: 'level0-0',
+        permissionRead: 1,
+        permissionWrite: 0,
+        value: matchRewardData00,
+        userId: context.userId,
+    };
     try {
-        nk.storageWrite([writeItem00Op, writeItem01Op, writeItem02Op, writeItem03Op]);
+        nk.storageWrite([writeItem00Op, writeItem01Op,
+            writeItem02Op, writeItem03Op, writeMatchReward00Op]);
     }
     catch (error) {
         logger.error('storageWrite error: %q', error);

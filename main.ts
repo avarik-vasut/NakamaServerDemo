@@ -16,12 +16,16 @@ const rpcIdRewards = 'rewards_js';
 const rpcIdFindMatch = 'find_match_js';
 const rpcIdCanClaim = 'can_claim_js';
 const rpcIdInitializeUser = 'init_user_js';
+const rpcIdMatchWon = 'match_won_js';
 
 function InitModule(ctx: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, initializer: nkruntime.Initializer) {
     initializer.registerRpc(rpcIdRewards, rpcReward);
     initializer.registerRpc(rpcIdFindMatch, rpcFindMatch);
     initializer.registerRpc(rpcIdCanClaim, rpcCanClaimDailyReward);  
     initializer.registerRpc(rpcIdInitializeUser, rpcInitializeUser);
+    initializer.registerRpc(rpcIdMatchWon, rpcMatchWon);
+
+
     initializer.registerMatch(moduleName, {
         matchInit,
         matchJoinAttempt,

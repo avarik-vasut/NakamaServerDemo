@@ -108,29 +108,139 @@ function rpcReward(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkr
 }
 
 
-// function rpcMatchWon(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
-    // var matchReward = getMatchReward(context, logger, nk, payload);
-   //get match reward and all 
-    // var result = JSON.stringify(response);
-    // logger.debug('rpcMatchWon response: %q', result);
+class rewardData {
+        rewardEntry: [{[key:string]:any;
+            itemId:string;
+            amount:number;}];
+        latestUpdatedUnix: number;
+  constructor() {
+    this.rewardEntry = [{itemId:'0',amount:0}];
+    this.latestUpdatedUnix = 0;
+     }
 
-    // return result;
-// }
+}
+
+function rpcMatchWon(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): string {
+    // get relevant match reward info 
+    var matchReward = getMatchReward(context, logger, nk, payload);
+    //update player data, add reward to wallet
+    logger.debug('reward#1: %q', matchReward);
+   
+    const rewardDataInstance = new rewardData;
+    for(var i in matchReward){
+    logger.debug('matchRewardContent',i);
+        if(i === 'latestUpdatedUnix'){
+            rewardDataInstance.latestUpdatedUnix = matchReward[i];
+        }
+
+        if(i === 'rewardEntry'){
+            rewardDataInstance.rewardEntry = matchReward[i]; 
+        }
+    }
+
+    logger.debug('setting RewardDataInstance  : ',rewardDataInstance.latestUpdatedUnix);
+    for( var q in rewardDataInstance.rewardEntry)
+        {
+            logger.debug('setting RewardDataInstance rewardEntry : ',rewardDataInstance.rewardEntry[q]);
+            let currentReward = rewardDataInstance.rewardEntry[q];
+           var now = msecToSec(Date.now());
+           
+   var key  = ''; 
+     var amount = 1; 
+            for(var x in currentReward){
+             
+   logger.debug('Getting currentReward Key Value: ',currentReward[x]['itemId']); 
+   logger.debug('Getting currentReward Value: ',currentReward[x]['amount']);
+                key = currentReward[x]['itemId'];
+                amount = currentReward[x]['amount'];
+    var itemEntryData: any = {
+            itemId: key,
+            amount: amount,
+            addedOn: now,
+            }
+
+            var addItemOp: nkruntime.StorageWriteRequest = {
+            collection: 'inventory',
+            key: key,
+            permissionRead: 1,
+            permissionWrite: 0,
+            value: itemEntryData,
+            userId: context.userId,
+        }
+        try {
+            nk.storageWrite([ addItemOp])
+        } 
+    catch (error) {
+            logger.error('storageWrite error: %q', error);
+            throw error;
+        }
+
+
+                }
+         
+        
+        }
+
+    
+
+
+
+
+    var result = JSON.stringify(matchReward);
+    //response with changes
+    logger.debug('rpcMatchWon response: %q', result);
+
+    return result;
+}
+
+
+function getMatchReward(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string): any{
+ if (!context.userId) {
+        throw Error('No user ID in context');
+    }
+
+    var objectId: nkruntime.StorageReadRequest = {
+        collection: 'matchReward',
+        key: payload,
+        userId: context.userId,
+    }
+
+    var objects: nkruntime.StorageObject[];
+    try {
+        objects = nk.storageRead([ objectId ]);
+    } catch (error) {
+        logger.error('storageRead error: %s', error);
+        throw error;
+    }
+
+    var matchReward: any = {
+        latestUpdatedUnix: 0,
+    }
+
+    objects.forEach(function (object) {
+        if (object.key == payload) {
+            matchReward = object.value;
+        }
+    });
+
+    return matchReward;
+}
+
+
 
 function rpcInitializeUser(context: nkruntime.Context, logger: nkruntime.Logger, nk: nkruntime.Nakama, payload: string) : any {
     if (!context.userId) {
         throw Error('No user ID in context');
     }
 
- var initialzedTime = msecToSec(Date.now());
- var itemData00: any = {
+    var initialzedTime = msecToSec(Date.now());
+    var itemData00: any = {
     quantity: 1,
     goldCost: 100,
     gemCost: 10,
     latestUpdatedUnix: initialzedTime,
     }
-
-  var writeItem00Op: nkruntime.StorageWriteRequest = {
+    var writeItem00Op: nkruntime.StorageWriteRequest = {
             collection: 'catalogue',
             key: 'item_00',
             permissionRead: 1,
@@ -138,14 +248,12 @@ function rpcInitializeUser(context: nkruntime.Context, logger: nkruntime.Logger,
             value: itemData00,
             userId: context.userId,
         }
-
     var itemData01: any = {
     quantity: 1,
     goldCost: 200,
     gemCost: 20,
     latestUpdatedUnix: initialzedTime,
     }
-
     var writeItem01Op: nkruntime.StorageWriteRequest = {
             collection: 'catalogue',
             key: 'item_01',
@@ -154,15 +262,12 @@ function rpcInitializeUser(context: nkruntime.Context, logger: nkruntime.Logger,
             value: itemData01,
             userId: context.userId,
         }
-
-
     var itemData02: any = {
     quantity: 1,
     goldCost: 300,
     gemCost: 30,
     latestUpdatedUnix: initialzedTime,
     }
-
     var writeItem02Op: nkruntime.StorageWriteRequest = {
             collection: 'catalogue',
             key: 'item_02',
@@ -171,15 +276,12 @@ function rpcInitializeUser(context: nkruntime.Context, logger: nkruntime.Logger,
             value: itemData02,
             userId: context.userId,
         }
-
-
     var itemData03: any = {
     quantity: 1,
     goldCost: 400   ,
     gemCost: 40,
     latestUpdatedUnix: initialzedTime,
     }
-
     var writeItem03Op: nkruntime.StorageWriteRequest = {
             collection: 'catalogue',
             key: 'item_03',
@@ -189,16 +291,30 @@ function rpcInitializeUser(context: nkruntime.Context, logger: nkruntime.Logger,
             userId: context.userId,
         }
         
+    var matchRewardData00: any = {
+    rewardEntry: [[{itemId:'item_00',amount: 1}],[{itemId:'item_01', amount:5}]],
+        latestUpdatedUnix: initialzedTime
+    }
 
-
-    try {
-            nk.storageWrite([ writeItem00Op, writeItem01Op ,writeItem02Op,writeItem03Op ])
-        } catch (error) {
-            logger.error('storageWrite error: %q', error);
-            throw error;
+    var writeMatchReward00Op: nkruntime.StorageWriteRequest = {
+            collection: 'matchReward',
+            key: 'level0-0',
+            permissionRead: 1,
+            permissionWrite: 0,
+            value: matchRewardData00,
+            userId: context.userId,
         }
 
 
+
+    try {
+            nk.storageWrite([ writeItem00Op, writeItem01Op
+                , writeItem02Op, writeItem03Op, writeMatchReward00Op ])
+        } 
+    catch (error) {
+            logger.error('storageWrite error: %q', error);
+            throw error;
+        }
 }
 
 
